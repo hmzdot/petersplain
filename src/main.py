@@ -1,6 +1,7 @@
 import os
 import base64
 import random
+import argparse
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 from moviepy import TextClip, CompositeVideoClip, VideoFileClip
@@ -20,7 +21,7 @@ FONT_PATH = "./data/subtitle_font.otf"
 PETER_GRIFFIN_VOICE_ID = "bPz3YmDohVKx47H3m07y"
 
 
-def generate_voice_with_timestamps(text, voice_id=None, model="eleven_turbo_v2"):
+def generate_voice_with_timestamps(text, voice_id=None):
     """
     Generate speech with word-level timestamps
 
@@ -52,12 +53,6 @@ def generate_voice_with_timestamps(text, voice_id=None, model="eleven_turbo_v2")
         "character_end_times_seconds": alignment.character_end_times_seconds,
     }
 
-    # if timestamps:
-    #     # Save the timestamps to a file
-    #     with open("timestamps.json", "w") as f:
-    #         timestamps_dict =
-    #         json.dump(timestamps_dict, f)
-
     return audio, timestamps
 
 
@@ -77,9 +72,6 @@ def create_subtitle_clip(text, start_time, duration, video_size):
         .with_start(start_time)
         .with_duration(duration)
     )
-
-    # Apply fade-in effect
-    # subtitle = subtitle.crossfadein(1)  # 1-second fade-in
     return subtitle
 
 
@@ -168,13 +160,8 @@ def add_peter_image(video: VideoFileClip) -> CompositeVideoClip:
     # Load and resize Peter's image
     peter_img = ImageClip("data/peter.png")
 
-    # Calculate desired height (1/3 of video height)
     target_height = video.h // 2
-
-    # Resize image
     peter_img = peter_img.resized(height=target_height)
-
-    # Position at bottom left with some padding
     padding_x = -40
     padding_y = -100
     peter_img = peter_img.with_position(
@@ -188,26 +175,20 @@ def add_peter_image(video: VideoFileClip) -> CompositeVideoClip:
 
 
 if __name__ == "__main__":
-    # Example usage of the generate_voice_with_timestamps function
-    # Generate voice audio
-    sample_text = """
-    WikiTok is a web application that presents random Wikipedia articles in a TikTok-like vertical scrolling feed.
-    Users can swipe through article previews, which include images, titles, and excerpts, and access the full articles if interested.
-    The platform supports 14 languages, such as English, Spanish, French, German, Chinese, and Japanese.
-    It features a language selector with country flags, preloads content for smooth scrolling, and offers a responsive design suitable for both mobile and desktop devices.
-    """
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Generate Peter Griffin videos")
+    parser.add_argument("text", help="Text to convert to speech")
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="default.mp4",
+        help="Output file path (default: default.mp4)",
+    )
+    args = parser.parse_args()
 
     audio, timestamps = generate_voice_with_timestamps(
-        sample_text, voice_id=PETER_GRIFFIN_VOICE_ID
+        args.text, voice_id=PETER_GRIFFIN_VOICE_ID
     )
-
-    # Save the audio to a file
-    # with open("output_with_timestamps.mp3", "wb") as f:
-    #     f.write(audio)  # Write the audio bytes, not read
-
-    # Load the timestamps from the file
-    # with open("timestamps.json", "r") as f:
-    #     timestamps = json.load(f)
 
     # Generate subtitle list
     subtitles = create_subtitle_list(timestamps)
@@ -254,6 +235,6 @@ if __name__ == "__main__":
     )
 
     # Clean up
-    # audio_clip.close()
+    audio_clip.close()
     video.close()
     final_video.close()
