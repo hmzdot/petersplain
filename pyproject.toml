@@ -1,0 +1,11 @@
+[project]
+name = "petersplain"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "elevenlabs[pyaudio]>=1.52.0",
+    "moviepy>=2.1.2",
+    "python-dotenv>=1.0.1",
+]
