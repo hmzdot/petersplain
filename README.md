@@ -3,6 +3,11 @@
 Creates TikTok videos of Peter Griffin explaining anything, using MoviePy and
 ElevenLabs.
 
+
+https://github.com/user-attachments/assets/4337c766-36a9-4043-96e9-296f9d6b67e7
+
+
+
 ## Installation
 
 ```bash
