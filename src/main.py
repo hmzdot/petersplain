@@ -1,18 +1,15 @@
 import os
 import base64
-import random
 import argparse
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
-from moviepy import TextClip, CompositeVideoClip, VideoFileClip
-from moviepy.video.fx import Crop
-from moviepy.video.VideoClip import ImageClip
+from moviepy import TextClip, CompositeVideoClip, VideoFileClip, vfx
+from moviepy.video.VideoClip import ImageClip, ColorClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 
 # Load environment variables from .env file
 load_dotenv()
 os.makedirs("out", exist_ok=True)
-os.makedirs("templates", exist_ok=True)
 
 # Initialize the ElevenLabs client
 client: ElevenLabs = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
@@ -133,24 +130,36 @@ def crop_video_to_tiktok(video: VideoFileClip) -> VideoFileClip:
     aspect_ratio = 1080 / 1920
 
     # Calculate crop dimensions
-    current_w = video.w
-    current_h = video.h
-
     target_height = video.h
-    target_width = target_height * aspect_ratio
+    target_width = (target_height * aspect_ratio // 54) * 54
 
     # Calculate x position to center the crop
-    x_center = current_w / 2
-    x1 = max(0, x_center - (target_width / 2))
+    x_center = video.w / 2
+    x1 = int(max(0, x_center - (target_width / 2)))
 
     # If needed, also crop height
-    y_center = current_h / 2
-    y1 = max(0, y_center - (target_height / 2))
+    y_center = video.h / 2
+    y1 = int(max(0, y_center - (target_height / 2)))
 
-    crop_effect = Crop(x1=x1, y1=y1, width=target_width, height=target_height)
-    cropped = crop_effect.apply(video)
+    print(x1, y1, target_width, target_height)
 
-    return cropped
+    return video.with_effects(
+        [vfx.Crop(x1=x1, y1=y1, width=target_width, height=target_height)]
+    )
+
+
+def create_black_background(duration, size=(1080, 1920)):
+    """
+    Create a black background clip with TikTok dimensions
+
+    Args:
+        duration (float): Duration of the clip in seconds
+        size (tuple): Width and height of the clip
+
+    Returns:
+        VideoClip: A black background video clip
+    """
+    return ColorClip(size=size, color=(0, 0, 0), duration=duration)
 
 
 def add_peter_image(video: VideoFileClip) -> CompositeVideoClip:
@@ -184,6 +193,11 @@ if __name__ == "__main__":
         default="default.mp4",
         help="Output file path (default: default.mp4)",
     )
+    parser.add_argument(
+        "-t",
+        "--template",
+        help="Specific template video to use (optional)",
+    )
     args = parser.parse_args()
 
     audio, timestamps = generate_voice_with_timestamps(
@@ -194,14 +208,23 @@ if __name__ == "__main__":
     subtitles = create_subtitle_list(timestamps)
     print(f"Generated {len(subtitles)} subtitle entries")
 
-    # Select a random video from templates/
-    try:
-        video_path = random.choice(os.listdir("templates"))
-    except IndexError:
-        raise Exception("No templates found in templates/")
+    # Calculate audio duration for black background if needed
+    last_subtitle_end = max(start + duration for _, start, duration in subtitles)
+    video_duration = last_subtitle_end + 2
 
-    video = VideoFileClip(f"templates/{video_path}")
-    video = crop_video_to_tiktok(video)
+    # Get video - either from template or create black background
+    if args.template and os.path.exists(args.template):
+        if os.path.exists(args.template):
+            video = VideoFileClip(args.template)
+            video = crop_video_to_tiktok(video)
+            fps = video.fps
+        else:
+            print(f"Template '{args.template}' not found, using black background")
+            video = create_black_background(video_duration)
+            fps = 30
+    else:
+        video = create_black_background(video_duration)
+        fps = 30
 
     # Add Peter's image
     video = add_peter_image(video)
@@ -213,8 +236,7 @@ if __name__ == "__main__":
     ]
 
     # Set video duration to match audio length plus 2 seconds
-    last_subtitle_end = max(start + duration for _, start, duration in subtitles)
-    video = video.with_duration(last_subtitle_end + 2)
+    video = video.with_duration(video_duration)
 
     # Load the generated audio file
     with open("out/__temp.mp3", "wb") as f:
@@ -229,6 +251,7 @@ if __name__ == "__main__":
     # Export the final video
     final_video.write_videofile(
         f"out/{args.output}",
+        fps=fps,
         codec="libx264",
         audio_codec="aac",
         temp_audiofile="out/__temp.m4a",
