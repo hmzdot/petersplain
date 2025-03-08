@@ -217,10 +217,10 @@ if __name__ == "__main__":
     video = video.with_duration(last_subtitle_end + 2)
 
     # Load the generated audio file
-    with open("temp.mp3", "wb") as f:
+    with open("out/__temp.mp3", "wb") as f:
         f.write(audio)
-    audio_clip = AudioFileClip("temp.mp3")
-    os.remove("temp.mp3")
+    audio_clip = AudioFileClip("out/__temp.mp3")
+    os.remove("out/__temp.mp3")
 
     # Combine video with subtitles and audio
     final_video = CompositeVideoClip([video, *subtitle_clips])
@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     # Export the final video
     final_video.write_videofile(
-        "out/video.mp4",
+        f"out/{args.output}",
         codec="libx264",
         audio_codec="aac",
         temp_audiofile="out/__temp.m4a",
